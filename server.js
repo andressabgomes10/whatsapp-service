@@ -84,14 +84,27 @@ async function handleIncomingMessage(message) {
                            message.message.extendedTextMessage?.text || ''
 
         console.log(`📨 Mensagem recebida de ${phoneNumber}: ${messageText}`)
+        console.log(`🔗 Enviando para: ${FASTAPI_URL}/api/whatsapp/message`)
 
         // Enviar mensagem para FastAPI para processamento
-        const response = await axios.post(`${FASTAPI_URL}/api/whatsapp/message`, {
+        const requestData = {
             phone_number: phoneNumber,
             message: messageText,
             message_id: message.key.id,
             timestamp: message.messageTimestamp || Math.floor(Date.now() / 1000)
+        }
+        
+        console.log(`📤 Dados da requisição:`, JSON.stringify(requestData, null, 2))
+        
+        const response = await axios.post(`${FASTAPI_URL}/api/whatsapp/message`, requestData, {
+            timeout: 10000, // 10 segundos
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'WhatsApp-Service/1.0.0'
+            }
         })
+
+        console.log(`✅ Resposta do backend:`, response.data)
 
         // Enviar resposta de volta para WhatsApp se FastAPI retornar uma
         if (response.data.reply) {
@@ -101,6 +114,12 @@ async function handleIncomingMessage(message) {
 
     } catch (error) {
         console.error('❌ Erro ao processar mensagem:', error.message)
+        console.error('❌ Stack trace:', error.stack)
+        
+        if (error.response) {
+            console.error('❌ Response data:', error.response.data)
+            console.error('❌ Response status:', error.response.status)
+        }
         
         // Enviar mensagem de erro para o usuário
         try {
